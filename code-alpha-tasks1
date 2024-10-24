@@ -1,0 +1,225 @@
+a) App Structure (React Navigation)
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import HomeScreen from './screens/HomeScreen';
+import LessonScreen from './screens/LessonScreen';
+import QuizScreen from './screens/QuizScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import ForumScreen from './screens/ForumScreen';
+
+const Stack = createStackNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Lesson" component={LessonScreen} />
+        <Stack.Screen name="Quiz" component={QuizScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Forum" component={ForumScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+b) Home Screen with Navigation
+import React from 'react';
+import { View, Text, Button } from 'react-native';
+
+const HomeScreen = ({ navigation }) => {
+  return (
+    <View>
+      <Text>Welcome to Language Learning App!</Text>
+      <Button
+        title="Start Lesson"
+        onPress={() => navigation.navigate('Lesson')}
+      />
+      <Button
+        title="Take a Quiz"
+        onPress={() => navigation.navigate('Quiz')}
+      />
+      <Button
+        title="Go to Forum"
+        onPress={() => navigation.navigate('Forum')}
+      />
+      <Button
+        title="View Profile"
+        onPress={() => navigation.navigate('Profile')}
+      />
+    </View>
+  );
+};
+
+export default HomeScreen;
+ c)Lesson Screen (Interactive Lessons)
+import React from 'react';
+import { View, Text, Button } from 'react-native';
+
+const LessonScreen = ({ navigation }) => {
+  return (
+    <View>
+      <Text>Lesson 1: Introduction to Basic Words</Text>
+      {/* Add interactive lesson content here */}
+      <Button
+        title="Take Quiz"
+        onPress={() => navigation.navigate('Quiz')}
+      />
+    </View>
+  );
+};
+
+export default LessonScreen;
+d) Quiz Screen (Multiple Choice Quiz)
+import React, { useState } from 'react';
+import { View, Text, Button } from 'react-native';
+
+const QuizScreen = ({ navigation }) => {
+  const [score, setScore] = useState(0);
+  
+  const handleAnswer = (isCorrect) => {
+    if (isCorrect) setScore(score + 1);
+    // Navigate to next question or show results
+  };
+
+  return (
+    <View>
+      <Text>Question 1: What does 'Hola' mean?</Text>
+      <Button title="Hello" onPress={() => handleAnswer(true)} />
+      <Button title="Goodbye" onPress={() => handleAnswer(false)} />
+    </View>
+  );
+};
+
+export default QuizScreen;
+ Backend Integration (Firebase)
+a) Firebase Configuration (Initialize Firebase)
+import firebase from 'firebase/app';
+import 'firebase/auth';
+import 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+export const auth = firebase.auth();
+export const firestore = firebase.firestore();
+b) Progress Tracking and Achievements
+Store user progress (lessons completed, quizzes taken) in Firestore.
+export const updateUserProgress = (userId, lessonId, points) => {
+  const userRef = firestore.collection('users').doc(userId);
+
+  userRef.update({
+    lessonsCompleted: firebase.firestore.FieldValue.arrayUnion(lessonId),
+    points: firebase.firestore.FieldValue.increment(points),
+  });
+};
+
+export const getUserProgress = (userId) => {
+  return firestore.collection('users').doc(userId).get();
+};
+4. Community Forum (ForumScreen)
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, TextInput, Button } from 'react-native';
+import { firestore } from '../firebase';
+
+const ForumScreen = () => {
+  const [posts, setPosts] = useState([]);
+  const [newPost, setNewPost] = useState('');
+
+  useEffect(() => {
+    const unsubscribe = firestore.collection('forum').onSnapshot(snapshot => {
+      const postsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPosts(postsData);
+    });
+    return unsubscribe;
+  }, []);
+
+  const addPost = () => {
+    firestore.collection('forum').add({
+      content: newPost,
+      createdAt: new Date(),
+    });
+    setNewPost('');
+  };
+
+  return (
+    <View>
+      <Text>Community Forum</Text>
+      <FlatList
+        data={posts}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View>
+            <Text>{item.content}</Text>
+          </View>
+        )}
+      />
+      <TextInput
+        placeholder="Write a post..."
+        value={newPost}
+        onChangeText={setNewPost}
+      />
+      <Button title="Post" onPress={addPost} />
+    </View>
+  );
+};
+
+export default ForumScreen;
+5. Gamification (Points and Achievements)
+Users earn points for completing lessons, quizzes, and participating in the forum.
+Achievements can be awarded based on the points.
+const addPoints = (userId, points) => {
+  firestore.collection('users').doc(userId).update({
+    points: firebase.firestore.FieldValue.increment(points),
+  });
+};
+
+const checkAchievements = (userId) => {
+  firestore.collection('users').doc(userId).get().then(doc => {
+    const { points } = doc.data();
+    if (points >= 100) {
+      // Unlock achievement
+    }
+  });
+};
+6. Authentication (Login/Register)
+You can use Firebase Authentication for user login and registration. Here's an example of a simple login component:
+import React, { useState } from 'react';
+import { View, TextInput, Button } from 'react-native';
+import { auth } from '../firebase';
+
+const LoginScreen = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const login = () => {
+    auth.signInWithEmailAndPassword(email, password)
+      .then(userCredential => {
+        // Signed in 
+        var user = userCredential.user;
+      })
+      .catch(error => {
+        console.error(error);
+      });
+  };
+
+  return (
+    <View>
+      <TextInput placeholder="Email" value={email} onChangeText={setEmail} />
+      <TextInput placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
+      <Button title="Login" onPress={login} />
+    </View>
+  );
+};
+
+export default LoginScreen;
