@@ -1,0 +1,225 @@
+App Code (React Native)
+a) Install Dependencies
+npm install @react-native-async-storage/async-storage
+App Code
+a) Home Screen
+import React from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+
+const HomeScreen = ({ navigation }) => {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Flashcard Quiz App</Text>
+      <Button
+        title="Add Flashcards"
+        onPress={() => navigation.navigate('AddFlashcard')}
+      />
+      <Button
+        title="Start Quiz"
+        onPress={() => navigation.navigate('Quiz')}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    marginBottom: 20,
+  },
+});
+
+export default HomeScreen;
+b) Add Flashcard Screen
+import React, { useState } from 'react';
+import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const AddFlashcardScreen = ({ navigation }) => {
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+
+  const saveFlashcard = async () => {
+    try {
+      const newFlashcard = { question, answer };
+      const storedFlashcards = await AsyncStorage.getItem('flashcards');
+      const flashcards = storedFlashcards ? JSON.parse(storedFlashcards) : [];
+      flashcards.push(newFlashcard);
+      await AsyncStorage.setItem('flashcards', JSON.stringify(flashcards));
+      setQuestion('');
+      setAnswer('');
+      navigation.navigate('Home');
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Add Flashcard</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Enter Question"
+        value={question}
+        onChangeText={setQuestion}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Enter Answer"
+        value={answer}
+        onChangeText={setAnswer}
+      />
+      <Button title="Save Flashcard" onPress={saveFlashcard} />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    marginBottom: 20,
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 20,
+    padding: 10,
+  },
+});
+
+export default AddFlashcardScreen;
+c) Quiz Screen
+import React, { useState, useEffect } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const QuizScreen = ({ navigation }) => {
+  const [flashcards, setFlashcards] = useState([]);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  useEffect(() => {
+    const loadFlashcards = async () => {
+      try {
+        const storedFlashcards = await AsyncStorage.getItem('flashcards');
+        const flashcards = storedFlashcards ? JSON.parse(storedFlashcards) : [];
+        setFlashcards(flashcards);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadFlashcards();
+  }, []);
+
+  const handleAnswer = (isCorrect) => {
+    if (isCorrect) setScore(score + 1);
+
+    setShowAnswer(false);
+    const nextIndex = currentCardIndex + 1;
+
+    if (nextIndex < flashcards.length) {
+      setCurrentCardIndex(nextIndex);
+    } else {
+      alert(`Quiz Complete! Your Score: ${score}/${flashcards.length}`);
+      navigation.navigate('Home');
+    }
+  };
+
+  if (flashcards.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text>No flashcards available. Please add some flashcards first.</Text>
+      </View>
+    );
+  }
+
+  const currentFlashcard = flashcards[currentCardIndex];
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.questionText}>
+        {currentFlashcard.question}
+      </Text>
+      {showAnswer && (
+        <Text style={styles.answerText}>
+          Answer: {currentFlashcard.answer}
+        </Text>
+      )}
+      <Button
+        title={showAnswer ? 'Hide Answer' : 'Show Answer'}
+        onPress={() => setShowAnswer(!showAnswer)}
+      />
+      <Button
+        title="Correct"
+        onPress={() => handleAnswer(true)}
+      />
+      <Button
+        title="Incorrect"
+        onPress={() => handleAnswer(false)}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  questionText: {
+    fontSize: 24,
+    marginBottom: 20,
+  },
+  answerText: {
+    fontSize: 20,
+    marginBottom: 20,
+  },
+});
+
+export default QuizScreen;
+4. Navigation Setup
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import HomeScreen from './screens/HomeScreen';
+import AddFlashcardScreen from './screens/AddFlashcardScreen';
+import QuizScreen from './screens/QuizScreen';
+
+const Stack = createStackNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="AddFlashcard" component={AddFlashcardScreen} />
+        <Stack.Screen name="Quiz" component={QuizScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+5. Local Storage with AsyncStorage
+[
+  {
+    "question": "What is React?",
+    "answer": "A JavaScript library for building user interfaces."
+  },
+  {
+    "question": "What is the capital of France?",
+    "answer": "Paris."
+  }
+]
