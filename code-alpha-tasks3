@@ -1,0 +1,234 @@
+Frontend Code (React Native)
+a) App Structure (React Navigation)
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import HomeScreen from './screens/HomeScreen';
+import WorkoutScreen from './screens/WorkoutScreen';
+import GoalsScreen from './screens/GoalsScreen';
+import ProgressScreen from './screens/ProgressScreen';
+
+const Stack = createStackNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Workout" component={WorkoutScreen} />
+        <Stack.Screen name="Goals" component={GoalsScreen} />
+        <Stack.Screen name="Progress" component={ProgressScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+b) Home Screen
+import React from 'react';
+import { View, Text, Button } from 'react-native';
+
+const HomeScreen = ({ navigation }) => {
+  return (
+    <View>
+      <Text>Welcome to Fitness Tracker App!</Text>
+      <Button
+        title="Record Workout"
+        onPress={() => navigation.navigate('Workout')}
+      />
+      <Button
+        title="Set Fitness Goals"
+        onPress={() => navigation.navigate('Goals')}
+      />
+      <Button
+        title="View Progress"
+        onPress={() => navigation.navigate('Progress')}
+      />
+    </View>
+  );
+};
+
+export default HomeScreen;
+3. Workout Recording Feature
+a) Workout Screen (Different Exercises)
+import React, { useState } from 'react';
+import { View, Text, TextInput, Button } from 'react-native';
+import { firestore } from '../firebase';
+
+const WorkoutScreen = () => {
+  const [exercise, setExercise] = useState('');
+  const [reps, setReps] = useState('');
+  const [sets, setSets] = useState('');
+  const [duration, setDuration] = useState('');
+
+  const recordWorkout = () => {
+    firestore.collection('workouts').add({
+      exercise,
+      reps: parseInt(reps),
+      sets: parseInt(sets),
+      duration: parseInt(duration),
+      date: new Date(),
+    });
+    setExercise('');
+    setReps('');
+    setSets('');
+    setDuration('');
+  };
+
+  return (
+    <View>
+      <Text>Record a Workout</Text>
+      <TextInput placeholder="Exercise Name" value={exercise} onChangeText={setExercise} />
+      <TextInput placeholder="Reps" value={reps} keyboardType="numeric" onChangeText={setReps} />
+      <TextInput placeholder="Sets" value={sets} keyboardType="numeric" onChangeText={setSets} />
+      <TextInput placeholder="Duration (mins)" value={duration} keyboardType="numeric" onChangeText={setDuration} />
+      <Button title="Record Workout" onPress={recordWorkout} />
+    </View>
+  );
+};
+
+export default WorkoutScreen;
+ Setting Fitness Goals
+a) Goals Screen
+import React, { useState } from 'react';
+import { View, Text, TextInput, Button } from 'react-native';
+import { firestore } from '../firebase';
+
+const GoalsScreen = () => {
+  const [goalType, setGoalType] = useState('');
+  const [goalValue, setGoalValue] = useState('');
+
+  const setGoal = () => {
+    firestore.collection('goals').add({
+      type: goalType,
+      value: parseInt(goalValue),
+      date: new Date(),
+    });
+    setGoalType('');
+    setGoalValue('');
+  };
+
+  return (
+    <View>
+      <Text>Set a Fitness Goal</Text>
+      <TextInput placeholder="Goal Type (e.g., Running Distance)" value={goalType} onChangeText={setGoalType} />
+      <TextInput placeholder="Goal Value" value={goalValue} keyboardType="numeric" onChangeText={setGoalValue} />
+      <Button title="Set Goal" onPress={setGoal} />
+    </View>
+  );
+};
+
+export default GoalsScreen;
+ Progress Tracking and Analytics
+a) Progress Screen (View History and Statistics)
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList } from 'react-native';
+import { firestore } from '../firebase';
+
+const ProgressScreen = () => {
+  const [workouts, setWorkouts] = useState([]);
+
+  useEffect(() => {
+    const unsubscribe = firestore.collection('workouts').orderBy('date', 'desc').onSnapshot(snapshot => {
+      const workoutsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setWorkouts(workoutsData);
+    });
+    return unsubscribe;
+  }, []);
+
+  return (
+    <View>
+      <Text>Your Workout Progress</Text>
+      <FlatList
+        data={workouts}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View>
+            <Text>{item.exercise} - {item.reps} reps, {item.sets} sets, {item.duration} mins</Text>
+            <Text>{item.date.toDate().toDateString()}</Text>
+          </View>
+        )}
+      />
+    </View>
+  );
+};
+
+export default ProgressScreen;
+Backend Integration (Firebase)
+a) Firebase Configuration (Initialize Firebase)
+import firebase from 'firebase/app';
+import 'firebase/auth';
+import 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+export const auth = firebase.auth();
+export const firestore = firebase.firestore();
+ Fitness Goals and Progress Tracking
+a) Goal Tracking in Firestore
+export const updateGoal = (userId, goalType, goalValue) => {
+  firestore.collection('users').doc(userId).collection('goals').add({
+    goalType,
+    goalValue,
+    createdAt: new Date(),
+  });
+};
+
+export const getGoals = (userId) => {
+  return firestore.collection('users').doc(userId).collection('goals').get();
+};
+b) Tracking Workouts in Firestore
+export const recordWorkout = (userId, workoutData) => {
+  firestore.collection('users').doc(userId).collection('workouts').add({
+    ...workoutData,
+    createdAt: new Date(),
+  });
+};
+
+export const getWorkoutHistory = (userId) => {
+  return firestore.collection('users').doc(userId).collection('workouts').orderBy('createdAt', 'desc').get();
+};
+Authentication (Firebase Auth)
+a) Login/Registration Screen
+import React, { useState } from 'react';
+import { View, TextInput, Button } from 'react-native';
+import { auth } from '../firebase';
+
+const LoginScreen = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const login = () => {
+    auth.signInWithEmailAndPassword(email, password)
+      .then(userCredential => {
+        // Signed in 
+        var user = userCredential.user;
+      })
+      .catch(error => {
+        console.error(error);
+      });
+  };
+
+  return (
+    <View>
+      <TextInput placeholder="Email" value={email} onChangeText={setEmail} />
+      <TextInput placeholder="Password" secureTextEntry value={password} onChangeText={setPassword} />
+      <Button title="Login" onPress={login} />
+    </View>
+  );
+};
+
+export default LoginScreen;
+
+
+
+
