@@ -1,0 +1,265 @@
+Frontend: HTML/CSS/JavaScript
+a) index.html (Feed Page - Display Posts)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Social Media Platform</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Social Media Feed</h1>
+  
+  <div id="post-feed" class="post-feed">
+    <!-- Posts will be displayed here dynamically -->
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Fetch and display posts
+    fetch('http://localhost:3000/api/posts')
+      .then(response => response.json())
+      .then(posts => {
+        const feed = document.getElementById('post-feed');
+        posts.forEach(post => {
+          feed.innerHTML += `
+            <div class="post">
+              <h3>${post.author.username}</h3>
+              <p>${post.content}</p>
+              <button onclick="likePost('${post._id}')">Like (${post.likes})</button>
+              <input type="text" id="comment-${post._id}" placeholder="Write a comment">
+              <button onclick="addComment('${post._id}')">Comment</button>
+              <div id="comments-${post._id}">
+                ${post.comments.map(comment => `<p>${comment.author.username}: ${comment.content}</p>`).join('')}
+              </div>
+            </div>
+          `;
+        });
+      });
+  </script>
+</body>
+</html>
+b) profile.html (User Profile Page)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Profile</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>User Profile</h1>
+  
+  <div id="profile-info" class="profile-info">
+    <!-- User profile info will be displayed here -->
+  </div>
+
+  <h2>User's Posts</h2>
+  <div id="user-posts" class="user-posts">
+    <!-- User's posts will be displayed here -->
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Fetch user profile and posts
+    const userId = 'USER_ID'; // Replace with dynamic user ID
+    fetch(`http://localhost:3000/api/users/${userId}`)
+      .then(response => response.json())
+      .then(user => {
+        document.getElementById('profile-info').innerHTML = `
+          <h2>${user.username}</h2>
+          <p>Followers: ${user.followers.length}</p>
+          <p>Following: ${user.following.length}</p>
+          <button onclick="followUser('${user._id}')">Follow</button>
+        `;
+
+        const userPosts = document.getElementById('user-posts');
+        user.posts.forEach(post => {
+          userPosts.innerHTML += `
+            <div class="post">
+              <p>${post.content}</p>
+              <button onclick="likePost('${post._id}')">Like (${post.likes})</button>
+            </div>
+          `;
+        });
+      });
+  </script>
+</body>
+</html>
+style.css (Basic Styling)
+body {
+  font-family: Arial, sans-serif;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+.post-feed, .user-posts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.post {
+  border: 1px solid #ccc;
+  padding: 20px;
+  width: 400px;
+  margin-bottom: 20px;
+}
+
+.profile-info {
+  text-align: center;
+}
+
+button {
+  margin-top: 10px;
+}
+app.js (Frontend Logic)
+function likePost(postId) {
+  fetch(`http://localhost:3000/api/posts/${postId}/like`, { method: 'POST' })
+    .then(() => {
+      alert('Post liked!');
+      location.reload();
+    });
+}
+
+function addComment(postId) {
+  const commentContent = document.getElementById(`comment-${postId}`).value;
+  fetch(`http://localhost:3000/api/posts/${postId}/comment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: commentContent, author: 'USER_ID' }) // Replace 'USER_ID' with logged in user's ID
+  })
+    .then(() => {
+      alert('Comment added!');
+      location.reload();
+    });
+}
+
+function followUser(userId) {
+  fetch(`http://localhost:3000/api/users/${userId}/follow`, { method: 'POST' })
+    .then(() => {
+      alert('User followed!');
+      location.reload();
+    });
+}
+Backend: Express.js
+a) Install Dependencies
+mkdir backend
+cd backend
+npm init -y
+npm install express mongoose
+b) app.js (Main Express Application)
+const express = require('express');
+const mongoose = require('mongoose');
+const userRoutes = require('./routes/userRoutes');
+const postRoutes = require('./routes/postRoutes');
+const commentRoutes = require('./routes/commentRoutes');
+
+const app = express();
+const PORT = 3000;
+
+// Middleware
+app.use(express.json());
+
+// MongoDB connection
+mongoose.connect('mongodb://localhost/socialmedia', { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.log(err));
+
+// Routes
+app.use('/api/users', userRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/comments', commentRoutes);
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+c) models/User.js (User Schema)
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const UserSchema = new Schema({
+  username: String,
+  followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  following: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+});
+
+module.exports = mongoose.model('User', UserSchema);
+d) models/Post.js (Post Schema)
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const PostSchema = new Schema({
+  content: String,
+  author: { type: Schema.Types.ObjectId, ref: 'User' },
+  likes: { type: Number, default: 0 },
+  comments: [{ type: Schema.Types.ObjectId, ref: 'Comment' }],
+});
+
+module.exports = mongoose.model('Post', PostSchema);
+e) models/Comment.js (Comment Schema)
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const CommentSchema = new Schema({
+  content: String,
+  author: { type: Schema.Types.ObjectId, ref: 'User' },
+  post: { type: Schema.Types.ObjectId, ref: 'Post' },
+});
+
+module.exports = mongoose.model('Comment', CommentSchema);
+routes/userRoutes.js (User Routes)
+const express = require('express');
+const router = express.Router();
+const User = require('../models/User');
+
+// GET user by ID
+router.get('/:id', async (req, res) => {
+  const user = await User.findById(req.params.id).populate('posts followers following');
+  res.json(user);
+});
+
+// POST follow user
+router.post('/:id/follow', async (req, res) => {
+  const user = await User.findById(req.params.id);
+  user.followers.push(req.body.followerId); // Assuming `followerId` is sent in request body
+  await user.save();
+  res.json(user);
+});
+
+module.exports = router;
+g) routes/postRoutes.js (Post Routes)
+const express = require('express');
+const router = express.Router();
+const Post = require('../models/Post');
+
+// GET all posts
+router.get('/', async (req, res) => {
+  const posts = await Post.find().populate('author comments');
+  res.json(posts);
+});
+
+// POST like post
+router.post('/:id/like', async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  post.likes += 1;
+  await post.save();
+  res.json(post);
+});
+
+// POST add comment to post
+router.post('/:id/comment', async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  const comment = new Comment({ content: req.body.content, author: req.body.author });
+  post.comments.push(comment._id);
+  await comment.save();
+  await post.save();
+  res.json(post);
+});
+
+module.exports = router;
